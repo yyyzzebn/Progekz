@@ -11,9 +11,13 @@ FastAPI-Grundgerüst, Settings über `.env` (pydantic-settings), SQLite-Anbindun
 und das vollständige Datenmodell (Abschnitt 4) sind angelegt. Beim Start der App
 werden alle Tabellen automatisch erstellt.
 
-Noch offen (Baureihenfolge, Abschnitt 9): Telegram-Bot, Eingabe-Befehle,
-Google-Calendar-Sync, das „Gehirn", tägliches Briefing, Finanz-Coach,
-Wochenreflexion.
+**Schritt 2 — Telegram-Bot-Grundgerüst** ✅
+Bot reagiert auf `/start`, speichert die `chat_id` des Nutzers in der Datenbank
+(legt bei Bedarf einen User an) und spiegelt jede sonstige Textnachricht als
+Echo zurück. Beweist die Zustell-Schleife.
+
+Noch offen (Baureihenfolge, Abschnitt 9): Eingabe-Befehle, Google-Calendar-Sync,
+das „Gehirn", tägliches Briefing, Finanz-Coach, Wochenreflexion.
 
 ## Setup
 
@@ -39,6 +43,22 @@ Danach erreichbar:
 Die SQLite-Datei (Standard: `copilot.db`) wird beim ersten Start automatisch
 mit allen Tabellen angelegt.
 
+## Telegram-Bot (Schritt 2)
+
+1. Bot bei [@BotFather](https://t.me/BotFather) anlegen und den Token in die
+   `.env` eintragen: `TELEGRAM_BOT_TOKEN="..."`.
+2. Bot per Long-Polling starten:
+
+   ```bash
+   python -m app.bot
+   ```
+
+3. In Telegram dem Bot `/start` schicken → die `chat_id` wird gespeichert.
+   Jede weitere Nachricht wird als Echo zurückgespiegelt (Verbindungstest).
+
+Der Bot läuft als eigener Prozess (Long-Polling); die FastAPI-App muss dafür
+nicht laufen. Beide teilen sich dieselbe SQLite-Datenbank.
+
 ## Projektstruktur
 
 ```
@@ -47,4 +67,5 @@ app/
   database.py   # SQLAlchemy-Engine, Session, init_db()
   models.py     # ORM-Modelle = Datenmodell aus Abschnitt 4
   main.py       # FastAPI-App + Lifespan (DB-Init) + Health-Endpoints
+  bot.py        # Telegram-Bot: /start (speichert chat_id) + Echo
 ```
