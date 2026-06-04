@@ -1,0 +1,25 @@
+# Secrets & config
+.env
+
+# Datenbank
+*.db
+*.sqlite
+*.sqlite3
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+
+# Google Calendar OAuth (später)
+credentials.json
+token.json
+
+# OS / Editor
+.DS_Store
+.idea/
+.vscode/
