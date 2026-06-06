@@ -16,8 +16,21 @@ Bot reagiert auf `/start`, speichert die `chat_id` des Nutzers in der Datenbank
 (legt bei Bedarf einen User an) und spiegelt jede sonstige Textnachricht als
 Echo zurück. Beweist die Zustell-Schleife.
 
-Noch offen (Baureihenfolge, Abschnitt 9): Eingabe-Befehle, Google-Calendar-Sync,
-das „Gehirn", tägliches Briefing, Finanz-Coach, Wochenreflexion.
+**Schritt 3 — Eingabe-Befehle** ✅
+Manuelle Dateneingabe per Telegram in die Tabellen aus Abschnitt 4:
+
+| Befehl | Beispiel | Tabelle |
+|---|---|---|
+| `/task <titel> <YYYY-MM-DD>` | `/task Klausur lernen 2026-06-20` | `tasks` |
+| `/ausgabe <betrag> <kategorie>` | `/ausgabe 12.50 Essen` | `transactions` (negativ = Ausgabe) |
+| `/mood <energie 1-5> <stimmung 1-5>` | `/mood 4 3 müde` | `mood_logs` |
+| `/budget <week\|month> <kat> <betrag>` | `/budget week Essen 80` | `budgets` |
+
+Eingaben werden validiert (Datum, Wertebereich 1–5, Betrag); unbekannte Nutzer
+werden zuerst auf `/start` verwiesen. Betrag akzeptiert `12.50` und `12,50`.
+
+Noch offen (Baureihenfolge, Abschnitt 9): Google-Calendar-Sync, das „Gehirn",
+tägliches Briefing, Finanz-Coach, Wochenreflexion.
 
 ## Setup
 
@@ -67,5 +80,6 @@ app/
   database.py   # SQLAlchemy-Engine, Session, init_db()
   models.py     # ORM-Modelle = Datenmodell aus Abschnitt 4
   main.py       # FastAPI-App + Lifespan (DB-Init) + Health-Endpoints
-  bot.py        # Telegram-Bot: /start (speichert chat_id) + Echo
+  bot.py        # Telegram-Bot: /start, /task, /ausgabe, /mood, /budget, Echo
+  crud.py       # Persistenz-Helfer (Anlegen/Lesen) auf dem Datenmodell
 ```
