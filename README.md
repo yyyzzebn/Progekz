@@ -51,8 +51,25 @@ Generische, erweiterbare LLM-Auswertung (`app/brain/`):
 - Modell konfigurierbar über `CLAUDE_MODEL` (Default `claude-sonnet-4-20250514`),
   API-Key aus der `.env`. Implementiert ist vorerst nur `daily_briefing`.
 
-Noch offen (Baureihenfolge, Abschnitt 9): tägliches Briefing per Scheduler,
-Finanz-Coach, Wochenreflexion.
+**Schritt 6 — Tägliches Briefing + Prioritäten-Engine** ✅
+**Ab hier ist die proaktive Kernschleife komplett.**
+
+- **Prioritäten-Engine** (`app/priority.py`, rein & testbar): erkennt aus den
+  Kalender-Terminen die freien Zeitfenster des Tages (`free_slots`) und
+  bereitet offene Tasks nach Deadline-Nähe als Fakten auf
+  (`compute_priority_facts`). Diese Fakten gehen dem „Gehirn" mit — das Modell
+  übernimmt nur Priorisierung & Begründung.
+- **Scheduler** (`app/scheduler.py`, APScheduler): registriert pro Nutzer einen
+  Cron-Job zur **Weckzeit** (`BRIEFING_TIME` aus der `.env`, in der Zeitzone des
+  jeweiligen Nutzers), ruft `run_brain("daily_briefing")` auf und schickt das
+  formatierte Ergebnis per Telegram. Job-Fehler werden geloggt, ohne den
+  Scheduler zu stoppen.
+- **Erweiterbar:** jeder Job ist ein „Registrar" in `JOB_REGISTRARS`. Weitere
+  Trigger (Budget-Check, Wochenreflexion, Video-Modul) sind später nur eine
+  Funktion + ein Listeneintrag.
+
+Noch offen (Baureihenfolge, Abschnitt 9): Finanz-Coach (`/kaufen` + proaktive
+Budget-Warnung), Wochenreflexion.
 
 ## Setup
 
@@ -118,6 +135,21 @@ Der Sync ist read-only und idempotent (`source='gcal'` + `external_id`), läuft
 also gefahrlos beliebig oft. Später ruft der Scheduler `sync_all_users()`
 periodisch (alle 30 Min) auf.
 
+## Scheduler / tägliches Briefing (Schritt 6)
+
+Weckzeit in der `.env` setzen (`BRIEFING_TIME="07:30"`), dann den Scheduler als
+eigenen Prozess starten:
+
+```bash
+python -m app.scheduler
+```
+
+Er registriert pro Nutzer (mit `chat_id`) einen täglichen Job zur Weckzeit in
+dessen Zeitzone. Morgens läuft dann die Prioritäten-Engine, `run_brain` erzeugt
+das Briefing, und der Bot schickt es per Telegram. Voraussetzungen für einen
+echten Lauf: gültiger `TELEGRAM_BOT_TOKEN`, `ANTHROPIC_API_KEY` und mindestens
+ein Nutzer (per `/start` im Bot angelegt).
+
 ## Projektstruktur
 
 ```
@@ -129,6 +161,8 @@ app/
   bot.py        # Telegram-Bot: /start, /task, /ausgabe, /mood, /budget, Echo
   crud.py       # Persistenz-Helfer (Anlegen/Lesen/Upsert) auf dem Datenmodell
   gcal.py       # Google-Calendar-Sync (read-only, idempotent), CLI auth/sync
+  priority.py   # Prioritäten-Engine: freie Slots + Deadline-Fakten (rein/testbar)
+  scheduler.py  # APScheduler: tägliches Briefing pro Nutzer (erweiterbare Jobs)
   brain/        # Das „Gehirn"
     __init__.py #   öffentliche API (run_brain, build_user_state, Registry)
     core.py     #   run_brain(user_id, mode, extra)

@@ -43,6 +43,15 @@ class Settings(BaseSettings):
     # --- Standard-Zeitzone ---
     default_timezone: str = "Europe/Berlin"
 
+    # --- Scheduler / Briefing (Schritt 6) ---
+    # Weckzeit: zu dieser Uhrzeit kommt morgens das Briefing (in der Zeitzone
+    # des jeweiligen Nutzers). Format "HH:MM".
+    briefing_time: str = "07:30"
+    # Tagesende für die Slot-Suche der Prioritäten-Engine (Stunde, 0-23).
+    day_end_hour: int = 22
+    # Kürzeste Lücke, die als freier Slot zählt (Minuten).
+    min_slot_minutes: int = 30
+
 
 @lru_cache
 def get_settings() -> Settings:

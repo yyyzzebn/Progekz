@@ -18,10 +18,11 @@ Starten (Long-Polling, ideal zum Testen):
     python -m app.bot
 """
 
+import asyncio
 import logging
 from datetime import datetime
 
-from telegram import Update
+from telegram import Bot, Update
 from telegram.ext import (
     Application,
     ApplicationBuilder,
@@ -285,6 +286,27 @@ async def budget(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         f"📊 Budget #{budget_id} gesetzt: {limit_amount:.2f} € pro "
         f"{period_label} für {category}."
     )
+
+
+# --- Ausgehende Nachrichten (für den Scheduler) --------------------------
+
+async def _send_async(chat_id: str, text: str) -> None:
+    bot = Bot(settings.telegram_bot_token)
+    async with bot:
+        await bot.send_message(chat_id=chat_id, text=text)
+
+
+def send_message(chat_id: str | int, text: str) -> None:
+    """Schickt eine Nachricht (synchron, für den Scheduler nutzbar).
+
+    Baut für den Versand kurz einen eigenen Bot/Event-Loop auf — unabhängig
+    vom Long-Polling-Prozess.
+    """
+    if not settings.telegram_bot_token:
+        raise RuntimeError(
+            "TELEGRAM_BOT_TOKEN fehlt. Bitte in der .env setzen."
+        )
+    asyncio.run(_send_async(str(chat_id), text))
 
 
 # --- Application ----------------------------------------------------------

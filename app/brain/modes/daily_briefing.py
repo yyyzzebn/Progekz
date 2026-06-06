@@ -8,6 +8,10 @@ JSON nach OUTPUT_SCHEMA.
 import json
 
 from app.brain.registry import BrainMode, register_mode
+from app.config import get_settings
+from app.priority import compute_priority_facts
+
+settings = get_settings()
 
 SYSTEM_PROMPT = (
     "Du bist ein nüchterner, ehrlicher Prioritäten-Coach. Du hilfst dem Nutzer, "
@@ -35,13 +39,24 @@ OUTPUT_SCHEMA = {
 
 
 def build_user_prompt(state: dict, extra: dict) -> str:
+    # Prioritäten-Engine: freie Slots + Deadlines vorab als Fakten aufbereiten.
+    facts = compute_priority_facts(
+        state,
+        day_end_hour=settings.day_end_hour,
+        min_slot_minutes=settings.min_slot_minutes,
+    )
     return (
         "Aktueller Stand des Nutzers (kompaktes JSON):\n"
         f"{json.dumps(state, ensure_ascii=False, indent=2)}\n\n"
-        "Erstelle daraus das heutige Briefing. Wähle 1-3 Top-Prioritäten und "
-        "schlage realistische Zeitfenster vor, die nicht mit Terminen kollidieren. "
-        "Setze overload_flag auf true und fülle drop_suggestions, wenn deutlich "
-        "mehr ansteht als in den freien Slot passt.\n\n"
+        "Von der Prioritäten-Engine vorberechnete Fakten (freie Zeitfenster und "
+        "Deadlines, dringendste zuerst):\n"
+        f"{json.dumps(facts, ensure_ascii=False, indent=2)}\n\n"
+        "Erstelle daraus das heutige Briefing. Wähle 1-3 Top-Prioritäten und lege "
+        "sie in die vorgegebenen free_slots (suggested_slot muss in einem freien "
+        "Fenster liegen, nie mit Terminen kollidieren). Berücksichtige "
+        "days_until_due und importance. Setze overload_flag auf true und fülle "
+        "drop_suggestions, wenn die wichtigen Aufgaben nicht in free_minutes_total "
+        "passen.\n\n"
         "Antworte ausschließlich mit JSON nach genau diesem Schema:\n"
         f"{json.dumps(OUTPUT_SCHEMA, ensure_ascii=False, indent=2)}"
     )
