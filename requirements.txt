@@ -5,3 +5,6 @@ pydantic>=2.7
 pydantic-settings>=2.3
 python-dotenv>=1.0
 python-telegram-bot>=21.0
+google-api-python-client>=2.100
+google-auth>=2.30
+google-auth-oauthlib>=1.2

@@ -29,8 +29,15 @@ Manuelle Dateneingabe per Telegram in die Tabellen aus Abschnitt 4:
 Eingaben werden validiert (Datum, Wertebereich 1–5, Betrag); unbekannte Nutzer
 werden zuerst auf `/start` verwiesen. Betrag akzeptiert `12.50` und `12,50`.
 
-Noch offen (Baureihenfolge, Abschnitt 9): Google-Calendar-Sync, das „Gehirn",
-tägliches Briefing, Finanz-Coach, Wochenreflexion.
+**Schritt 4 — Google-Calendar-Sync (read-only)** ✅
+Holt per OAuth (Scope `calendar.readonly`) die kommenden Termine und schreibt sie
+in die `events`-Tabelle. Jedes Event trägt `source='gcal'` und die Google-Event-ID
+als `external_id` → ein erneuter Sync aktualisiert vorhandene Einträge statt zu
+duplizieren. Die Funktion `sync_calendar(user_id)` / `sync_all_users()` ist so
+gebaut, dass der Scheduler (Schritt 6+) sie periodisch aufrufen kann.
+
+Noch offen (Baureihenfolge, Abschnitt 9): das „Gehirn", tägliches Briefing,
+Finanz-Coach, Wochenreflexion.
 
 ## Setup
 
@@ -72,6 +79,30 @@ mit allen Tabellen angelegt.
 Der Bot läuft als eigener Prozess (Long-Polling); die FastAPI-App muss dafür
 nicht laufen. Beide teilen sich dieselbe SQLite-Datenbank.
 
+## Google-Calendar-Sync (Schritt 4)
+
+1. In der [Google Cloud Console](https://console.cloud.google.com/) ein Projekt
+   anlegen, die **Google Calendar API** aktivieren und eine **OAuth-Client-ID
+   vom Typ „Desktop App"** erstellen.
+2. `GOOGLE_CLIENT_ID` und `GOOGLE_CLIENT_SECRET` in die `.env` eintragen.
+3. Einmalig den Zugriff freigeben (öffnet lokal den Google-Consent-Screen):
+
+   ```bash
+   python -m app.gcal auth
+   ```
+
+   Danach liegt das Token in `token.json` (gitignored) und wird automatisch
+   erneuert — kein erneuter Login nötig.
+4. Termine in die DB holen:
+
+   ```bash
+   python -m app.gcal sync
+   ```
+
+Der Sync ist read-only und idempotent (`source='gcal'` + `external_id`), läuft
+also gefahrlos beliebig oft. Später ruft der Scheduler `sync_all_users()`
+periodisch (alle 30 Min) auf.
+
 ## Projektstruktur
 
 ```
@@ -81,5 +112,6 @@ app/
   models.py     # ORM-Modelle = Datenmodell aus Abschnitt 4
   main.py       # FastAPI-App + Lifespan (DB-Init) + Health-Endpoints
   bot.py        # Telegram-Bot: /start, /task, /ausgabe, /mood, /budget, Echo
-  crud.py       # Persistenz-Helfer (Anlegen/Lesen) auf dem Datenmodell
+  crud.py       # Persistenz-Helfer (Anlegen/Lesen/Upsert) auf dem Datenmodell
+  gcal.py       # Google-Calendar-Sync (read-only, idempotent), CLI auth/sync
 ```

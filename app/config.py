@@ -32,6 +32,14 @@ class Settings(BaseSettings):
     # --- Telegram Bot (Schritt 2) ---
     telegram_bot_token: str = ""
 
+    # --- Google Calendar (Schritt 4, read-only) ---
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    google_calendar_id: str = "primary"
+    # Datei, in der das OAuth-Token (inkl. Refresh-Token) abgelegt wird.
+    # Gitignored — enthält Zugangsdaten.
+    google_token_file: str = "token.json"
+
     # --- Standard-Zeitzone ---
     default_timezone: str = "Europe/Berlin"
 

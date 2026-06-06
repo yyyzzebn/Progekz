@@ -9,7 +9,7 @@ from datetime import datetime
 
 from sqlalchemy.orm import Session
 
-from app.models import Budget, MoodLog, Task, Transaction, User
+from app.models import Budget, Event, MoodLog, Task, Transaction, User
 
 
 # --- Users ---------------------------------------------------------------
@@ -101,6 +101,50 @@ def create_mood_log(
     session.commit()
     session.refresh(log)
     return log
+
+
+# --- Events (Kalender) ---------------------------------------------------
+
+def upsert_gcal_event(
+    session: Session,
+    user_id: int,
+    external_id: str,
+    title: str,
+    start_at: datetime,
+    end_at: datetime,
+) -> bool:
+    """Legt ein Kalender-Event an oder aktualisiert es (idempotent).
+
+    Identifiziert bestehende Events über (user_id, source='gcal', external_id),
+    sodass ein erneuter Sync keine Duplikate erzeugt. Committet NICHT selbst —
+    der Aufrufer committet den Batch. Gibt True zurück, wenn neu angelegt.
+    """
+    event = (
+        session.query(Event)
+        .filter(
+            Event.user_id == user_id,
+            Event.source == "gcal",
+            Event.external_id == external_id,
+        )
+        .one_or_none()
+    )
+    if event is not None:
+        event.title = title
+        event.start_at = start_at
+        event.end_at = end_at
+        return False
+
+    session.add(
+        Event(
+            user_id=user_id,
+            title=title,
+            start_at=start_at,
+            end_at=end_at,
+            source="gcal",
+            external_id=external_id,
+        )
+    )
+    return True
 
 
 # --- Budgets -------------------------------------------------------------
