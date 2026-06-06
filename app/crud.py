@@ -9,7 +9,7 @@ from datetime import datetime
 
 from sqlalchemy.orm import Session
 
-from app.models import Budget, Event, MoodLog, Task, Transaction, User
+from app.models import Budget, Event, MoodLog, Task, Transaction, User, Workout
 
 
 # --- Users ---------------------------------------------------------------
@@ -20,6 +20,10 @@ def get_user_by_chat_id(session: Session, chat_id: str) -> User | None:
         .filter(User.telegram_chat_id == chat_id)
         .one_or_none()
     )
+
+
+def get_user(session: Session, user_id: int) -> User | None:
+    return session.get(User, user_id)
 
 
 def get_or_create_user(
@@ -166,3 +170,90 @@ def create_budget(
     session.commit()
     session.refresh(budget)
     return budget
+
+
+# --- Lesezugriffe für build_user_state -----------------------------------
+
+def get_events_between(
+    session: Session, user_id: int, start: datetime, end: datetime
+) -> list[Event]:
+    return (
+        session.query(Event)
+        .filter(
+            Event.user_id == user_id,
+            Event.start_at >= start,
+            Event.start_at <= end,
+        )
+        .order_by(Event.start_at)
+        .all()
+    )
+
+
+def get_open_tasks(session: Session, user_id: int) -> list[Task]:
+    """Offene Aufgaben, früheste Deadline zuerst (Tasks ohne Deadline ans Ende)."""
+    return (
+        session.query(Task)
+        .filter(Task.user_id == user_id, Task.status == "open")
+        .order_by(Task.due_at.is_(None), Task.due_at, Task.importance.desc())
+        .all()
+    )
+
+
+def get_transactions_since(
+    session: Session, user_id: int, since: datetime
+) -> list[Transaction]:
+    return (
+        session.query(Transaction)
+        .filter(Transaction.user_id == user_id, Transaction.occurred_at >= since)
+        .order_by(Transaction.occurred_at.desc())
+        .all()
+    )
+
+
+def get_budgets(session: Session, user_id: int) -> list[Budget]:
+    return session.query(Budget).filter(Budget.user_id == user_id).all()
+
+
+def get_planned_workouts_between(
+    session: Session, user_id: int, start: datetime, end: datetime
+) -> list[Workout]:
+    return (
+        session.query(Workout)
+        .filter(
+            Workout.user_id == user_id,
+            Workout.done.is_(False),
+            Workout.planned_at >= start,
+            Workout.planned_at <= end,
+        )
+        .order_by(Workout.planned_at)
+        .all()
+    )
+
+
+def get_latest_mood(session: Session, user_id: int) -> MoodLog | None:
+    return (
+        session.query(MoodLog)
+        .filter(MoodLog.user_id == user_id)
+        .order_by(MoodLog.logged_at.desc())
+        .first()
+    )
+
+
+def spending_by_category_since(
+    session: Session, user_id: int, category: str, since: datetime
+) -> float:
+    """Summe der Ausgaben (positiver Betrag) einer Kategorie seit `since`."""
+    total = 0.0
+    rows = (
+        session.query(Transaction)
+        .filter(
+            Transaction.user_id == user_id,
+            Transaction.category == category,
+            Transaction.amount < 0,
+            Transaction.occurred_at >= since,
+        )
+        .all()
+    )
+    for tx in rows:
+        total += abs(tx.amount)
+    return total

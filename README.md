@@ -36,7 +36,22 @@ als `external_id` → ein erneuter Sync aktualisiert vorhandene Einträge statt 
 duplizieren. Die Funktion `sync_calendar(user_id)` / `sync_all_users()` ist so
 gebaut, dass der Scheduler (Schritt 6+) sie periodisch aufrufen kann.
 
-Noch offen (Baureihenfolge, Abschnitt 9): das „Gehirn", tägliches Briefing,
+**Schritt 5 — Das „Gehirn"** ✅
+Generische, erweiterbare LLM-Auswertung (`app/brain/`):
+
+- `build_user_state(user_id, horizon_days)` fasst events, tasks, transactions,
+  budgets (inkl. berechnetem Restbetrag), workouts und mood_logs zu kompaktem
+  JSON zusammen.
+- `run_brain(user_id, mode, extra=None)` bedient **alle** Modi über eine
+  Registry. Jeder Modus (`app/brain/modes/<name>.py`) bringt eigenen
+  System-Prompt, Zeithorizont und JSON-Schema mit und registriert sich selbst —
+  ein neuer Modus ist **nur Hinzufügen**, kein Umbau.
+- Robustes JSON-Parsing (`parse_json`): strippt Backticks/Code-Fences und
+  Vorwort, mit try/except und klarer `BrainParseError`.
+- Modell konfigurierbar über `CLAUDE_MODEL` (Default `claude-sonnet-4-20250514`),
+  API-Key aus der `.env`. Implementiert ist vorerst nur `daily_briefing`.
+
+Noch offen (Baureihenfolge, Abschnitt 9): tägliches Briefing per Scheduler,
 Finanz-Coach, Wochenreflexion.
 
 ## Setup
@@ -114,4 +129,12 @@ app/
   bot.py        # Telegram-Bot: /start, /task, /ausgabe, /mood, /budget, Echo
   crud.py       # Persistenz-Helfer (Anlegen/Lesen/Upsert) auf dem Datenmodell
   gcal.py       # Google-Calendar-Sync (read-only, idempotent), CLI auth/sync
+  brain/        # Das „Gehirn"
+    __init__.py #   öffentliche API (run_brain, build_user_state, Registry)
+    core.py     #   run_brain(user_id, mode, extra)
+    state.py    #   build_user_state — kompakter Nutzer-Snapshot
+    client.py   #   Anthropic-Call + robustes parse_json
+    registry.py #   BrainMode + register_mode/get_mode/list_modes
+    modes/      #   ein Modul pro Modus (self-registrierend)
+      daily_briefing.py
 ```
